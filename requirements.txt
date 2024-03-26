@@ -1,0 +1,8 @@
+beautifulsoup4==4.12.2
+configparser==6.0.1
+numpy==1.25.1
+pandas==2.0.3
+pillow==10.2.0
+requests==2.31.0
+urllib3==2.1.0
+yfinance==0.2.36
