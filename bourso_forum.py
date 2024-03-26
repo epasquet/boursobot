@@ -10,10 +10,12 @@ import pandas as pd
 import datetime as dt
 from bs4 import BeautifulSoup as bs
 
-from stocks import stocks, stocks_test
 from mail import Mail
+from logger import log
+from stocks import stocks, stocks_test
 
-DIR_PATH = "/Users/bobstomach/Documents/Dev/bourse/"
+
+DIR_PATH = "/Users/bobstomach/Documents/Dev/boursobot/"
 NOW = dt.datetime.now()
 TODAY = NOW.date()
 CURRENT_YEAR, CURRENT_MONTH = TODAY.year, TODAY.month
@@ -146,6 +148,7 @@ def bourso_forum_posts_count_filename(ticker, test=False):
     logging.debug(f"bourso_forum_posts_count_filename for {ticker} is {path}")
     return path
 
+@log
 def load_forum_history(ticker, test=False):
     filename = bourso_forum_posts_count_filename(ticker, test)
     if os.path.exists(filename):
@@ -153,8 +156,8 @@ def load_forum_history(ticker, test=False):
     else:
         return pd.DataFrame()
 
+@log
 def compute_store_results(df, ticker, test=False):
-    logging.debug(f"Compute_store_results for {ticker}")
     res = pd.concat([
             load_forum_history(ticker, test),
             pd.DataFrame({
@@ -171,8 +174,8 @@ def compute_store_results(df, ticker, test=False):
     res.drop_duplicates(subset=["date", "hour"], keep='first', inplace=True)
     res.to_csv(bourso_forum_posts_count_filename(ticker, test), index=False)
 
+@log
 def count_posts_for_timeslot(ticker):
-    logging.debug(f"count_posts_for_timeslot for {ticker}")
     dg = load_forum_history(ticker)
     dg["date"] = pd.to_datetime(dg["date"])
     dg = dg[dg["hour"] == CURRENT_HOUR]
@@ -182,8 +185,8 @@ def count_posts_for_timeslot(ticker):
     logging.debug(f"n_posts_avg - {n_posts_avg}")
     return n_posts_avg, n_posts
 
-def find_close_preouv(soup):
-    logging.debug(f"find_close_preouv for {ticker}")
+@log
+def find_close_preouv(soup, ticker):
     if CURRENT_HOUR == PREOPEN_HOUR:
         try:
             close = float(soup.find_all(attrs={"class": CLOSE_HTML_CLASS_NAME})[0].text)
@@ -200,16 +203,16 @@ def bourso_preopen_filename(ticker, test=False):
     logging.debug(f"bourso_preopen_filename for {ticker} is {path}")
     return path
 
+@log
 def load_preopen_history(ticker, test=False):
-    logging.debug(f"load_preopen_history for {ticker}")
     filename = bourso_preopen_filename(ticker, test)
     if os.path.exists(filename):
         return pd.read_csv(filename)
     else:
         return pd.DataFrame()
 
+@log
 def compute_store_preopen_results(ticker, close, pre_ouv, test=False):
-    logging.debug(f"compute_store_preopen_results for {ticker}")
     if CURRENT_HOUR == PREOPEN_HOUR:
         res = pd.concat([
                 load_preopen_history(ticker, test),
@@ -229,8 +232,8 @@ def compute_store_preopen_results(ticker, close, pre_ouv, test=False):
     else:
         pass
 
+@log
 def send_mail_forum(stocks, alert_list):
-    logging.debug(f"send_mail_forum")
     mail = Mail()
     text = "\n".join([
         f"{len(stocks)} actions crawlees",
@@ -242,8 +245,8 @@ def send_mail_forum(stocks, alert_list):
         unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode()
     )
 
+@log
 def send_mail_preouv(stocks, alert_list):
-    logging.debug(f"send_mail_preouv for list {alert_list}")
     if CURRENT_HOUR == PREOPEN_HOUR:
         mail = Mail()
         text = "\n".join([
@@ -287,7 +290,7 @@ if __name__ == "__main__":
             df = lists_to_df(subject_datetimes_list, answers_number_list, last_answer_datetimes_list)
             compute_store_results(df, ticker, argv.test)
             # Part 1.2 : pre ouv value
-            close, pre_ouv = find_close_preouv(soup)
+            close, pre_ouv = find_close_preouv(soup, ticker)
             compute_store_preopen_results(ticker, close, pre_ouv, argv.test)
 
             # Part 2 : process and alert
