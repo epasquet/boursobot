@@ -310,4 +310,4 @@ if __name__ == "__main__":
     logging.debug(f"alert_list_forum\n: {alert_list_forum}")
     logging.debug(f"alert_list_preouv\n: {alert_list_preouv}")
     send_mail_forum(stocks, alert_list_forum)
-    send_mail_preouv(stocks, alert_list_forum)
+    send_mail_preouv(stocks, alert_list_preouv)

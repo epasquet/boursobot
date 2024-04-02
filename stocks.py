@@ -1,5 +1,6 @@
 stocks = {
     "AL2SI": "2CRSI",
+    "ALORD": "Ordissimo",
     "AB": "AB Science",
     "ADOC": "Adocia",
     "ALAFY": "Afyren",
@@ -32,7 +33,6 @@ stocks = {
     "ALTHO": "Metavisio",
     "METEX": "Metabolic Explorer",
     "ALNFL": "NFL Biosciences",
-    "ALORD": "Ordissimo",
     "ALRPD": "Rapid Nutri",
     "SOI": "Soitec",
     "S30": "Solutions 30",
@@ -50,9 +50,9 @@ stocks = {
 
 stocks_test = {
     "AL2SI": "2CRSI",
-    "AB": "AB Science",
     "ADOC": "Adocia",
     "CGG": "CGG",
     "COV": "Covivio",
-    "ALCJ": "Crossject"
+    "ALCJ": "Crossject",
+    "ALORD": "Ordissimo", # Empty news section
 }

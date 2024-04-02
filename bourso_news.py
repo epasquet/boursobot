@@ -56,10 +56,15 @@ if __name__ == "__main__":
             delay = (dt.datetime.now() - date_time).days * 24 * 3600 + (dt.datetime.now() - date_time).seconds
             if delay < recency_duration:
                 print(f"Recent news for {name} ({ticker})")
+                print(last_news_title)
                 with open('/Users/bobstomach/Documents/Dev/bourse/recent_news.txt', 'a') as f:
                     f.write(f"Recent news for {name} ({ticker}): {last_news_title}")
                     f.write('\n')
-                news_list.append((ticker, name, last_news_title))
+                try:
+                    news_list.append((ticker, name, last_news_title))
+                except Exception:
+                    print(f"Unable to append stock {ticker} to last_news list")
+
             time.sleep(10 * np.random.random(1)[0])
             
         except Exception:
