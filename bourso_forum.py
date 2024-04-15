@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup as bs
 from mail import Mail
 from logger import log
 from stocks import stocks, stocks_test
+from common import LOG_LEVELS
 
 
 DIR_PATH = "/Users/bobstomach/Documents/Dev/boursobot/"
@@ -39,15 +40,16 @@ MONTHS_CONVERTER = {
     "nov": 11,
     "déc": 12
 }
-N_POSTS_MULTIPLIER = 1.1
+FORUM_MULTIPLIERS = {
+    "n_new_topics": 1.2,
+    "n_new_topics_answers": 1.2,
+    "n_topics_answered_today": 1.2,
+    "n_posts":1.15
+}
 PRE_OUV_MULTIPLIER_HIGH = 1.1
 PRE_OUV_MULTIPLIER_LOW = 0.9
-LOG_LEVELS = {
-    "debug": logging.DEBUG,
-    "info": logging.INFO,
-    "warning": logging.WARNING
-}
 PREOPEN_HOUR = 8
+FORUM_HISTORY_DURATION = 60
 
 
 def download_soup(ticker):
@@ -174,16 +176,35 @@ def compute_store_results(df, ticker, test=False):
     res.drop_duplicates(subset=["date", "hour"], keep='first', inplace=True)
     res.to_csv(bourso_forum_posts_count_filename(ticker, test), index=False)
 
+def extract_average_and_current_post_metrics(dg, metric_name):
+    n_ = dg.loc[dg["date"] >= pd.to_datetime(TODAY), metric_name].mean() #should be one single value. "mean" used for stability
+    logging.debug(f"{metric_name} - {n_}")
+    n_avg = dg[dg["date"] >= pd.to_datetime((TODAY - dt.timedelta(days=FORUM_HISTORY_DURATION)))][metric_name].mean()
+    logging.debug(f"{metric_name}_avg - {n_avg}")
+    return n_, n_avg
+
 @log
-def count_posts_for_timeslot(ticker):
-    dg = load_forum_history(ticker)
+def count_posts_for_timeslot(ticker, test=False):
+    dg = load_forum_history(ticker, test)
+    logging.debug(dg)
     dg["date"] = pd.to_datetime(dg["date"])
     dg = dg[dg["hour"] == CURRENT_HOUR]
-    n_posts_avg = dg[dg["date"] >= pd.to_datetime((TODAY - dt.timedelta(days=60)))]["n_posts"].mean()
-    logging.debug(f"n_posts_avg - {n_posts_avg}")
-    n_posts = dg.loc[dg["date"] >= pd.to_datetime(TODAY), "n_posts"].mean() #should be one single value. "mean" used for stability
-    logging.debug(f"n_posts_avg - {n_posts_avg}")
-    return n_posts_avg, n_posts
+    logging.debug(dg)
+    n_new_topics, n_new_topics_avg = extract_average_and_current_post_metrics(dg, "n_new_topics")
+    n_new_topics_answers, n_new_topics_answers_avg = extract_average_and_current_post_metrics(dg, "n_new_topics_answers")
+    n_topics_answered_today, n_topics_answered_today_avg = extract_average_and_current_post_metrics(dg, "n_topics_answered_today")
+    n_posts, n_posts_avg = extract_average_and_current_post_metrics(dg, "n_posts")
+
+    return {
+        "n_new_topics": n_new_topics,
+        "n_new_topics_avg": n_new_topics_avg,
+        "n_new_topics_answers": n_new_topics_answers,
+        "n_new_topics_answers_avg": n_new_topics_answers_avg,
+        "n_topics_answered_today": n_topics_answered_today,
+        "n_topics_answered_today_avg": n_topics_answered_today_avg,
+        "n_posts_avg": n_posts_avg,
+        "n_posts": n_posts
+    }
 
 @log
 def find_close_preouv(soup, ticker):
@@ -237,7 +258,7 @@ def send_mail_forum(stocks, alert_list):
     mail = Mail()
     text = "\n".join([
         f"{len(stocks)} actions crawlees",
-        *[f"{el[0]} {el[1]}: {el[2]} posts instead of about {el[3]}" for el in alert_list]
+        *[f"{el[0]}\t{el[1]}\t:\t{el[2]} : {el[3]/el[4] - 1:.0%}\t:\t{el[3]} VS avg :{el[4]:.1f}" for el in alert_list]
     ])
     mail.send(
         ["emmanuel.n.pasquet@gmail.com"],
@@ -260,6 +281,12 @@ def send_mail_preouv(stocks, alert_list):
         )
     else:
         pass
+
+@log
+def alert_list_forum_appender(ticker, name, counts, metric_name, alert_list_forum):
+    if (counts[f"{metric_name}_avg"] > 0) and (counts[metric_name] > FORUM_MULTIPLIERS[metric_name] * counts[f"{metric_name}_avg"]):
+        logging.debug(f"Appending to alert_list_forum")
+        alert_list_forum.append((ticker, name, metric_name, counts[metric_name], counts[f"{metric_name}_avg"]))
 
 
 if __name__ == "__main__":
@@ -295,9 +322,13 @@ if __name__ == "__main__":
 
             # Part 2 : process and alert
             # Part 2.1 : forum
-            n_posts_avg, n_posts = count_posts_for_timeslot(ticker)
-            if (n_posts_avg > 0) and (n_posts > N_POSTS_MULTIPLIER * n_posts_avg):
-                alert_list_forum.append((ticker, name, n_posts, n_posts_avg))
+            counts = count_posts_for_timeslot(ticker, argv.test)
+            logging.debug(counts)
+            alert_list_forum_appender(ticker, name, counts, "n_new_topics", alert_list_forum)
+            alert_list_forum_appender(ticker, name, counts, "n_new_topics_answers", alert_list_forum)
+            alert_list_forum_appender(ticker, name, counts, "n_topics_answered_today", alert_list_forum)
+            alert_list_forum_appender(ticker, name, counts, "n_posts", alert_list_forum)
+
             # Part 2.2 : pre ouv
             if (pre_ouv/close > PRE_OUV_MULTIPLIER_HIGH) or (pre_ouv/close < PRE_OUV_MULTIPLIER_LOW):
                 alert_list_preouv.append((ticker, name, close, pre_ouv))
@@ -305,7 +336,7 @@ if __name__ == "__main__":
         except Exception:
             logging.debug(f"Failed processing stock {ticker}")
         
-        time.sleep(12 * np.random.random(1)[0])
+        time.sleep(10 * np.random.random(1)[0])
 
     logging.debug(f"alert_list_forum\n: {alert_list_forum}")
     logging.debug(f"alert_list_preouv\n: {alert_list_preouv}")

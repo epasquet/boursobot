@@ -49,10 +49,10 @@ stocks = {
 }
 
 stocks_test = {
-    "AL2SI": "2CRSI",
-    "ADOC": "Adocia",
+    #"AL2SI": "2CRSI",
+    #"ADOC": "Adocia",
     "CGG": "CGG",
-    "COV": "Covivio",
+    #"COV": "Covivio",
     "ALCJ": "Crossject",
-    "ALORD": "Ordissimo", # Empty news section
+    #"ALORD": "Ordissimo", # Empty news section
 }

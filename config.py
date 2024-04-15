@@ -13,7 +13,7 @@ PACKAGE_DIR = Path(HOME_DIR / "Documents" / "Dev" / "bourse")
 # config.read(MAIL_CRED_FILE)
 # 
 # for k in config.keys():
-    print(k)
+#    print(k)
 # 
 # login = config.get("configuration", "login")
 # password = config.get("configuration", "password")

@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup as bs
 
 from stocks import stocks, stocks_test
 from mail import Mail
+from common import LOG_LEVELS
+
 
 logging.basicConfig(filename='bourso_news_logs.log', filemode='w', encoding='utf-8', level=logging.DEBUG)
 
@@ -17,29 +19,36 @@ def extract_datetime(st) -> dt.date:
     date_, time_ = st[0].text.split("."), st[1].text.split(":")
     return dt.datetime(int(date_[2]), int(date_[1]), int(date_[0]), int(time_[0]), int(time_[1]))
 
+def download_soup(ticker):
+    url = f"https://www.boursorama.com/cours/actualites/1rP{ticker}/"
+    if ticker in ["ALCLS", "ALGEN"]:
+        url = f"https://www.boursorama.com/cours/actualites/1rEP{ticker}/"
+    r = requests.get(url)
+    soup = bs(r.text, 'html.parser')
+    return soup
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--n_hours", type=int, default=14)
     ap.add_argument("--test", type=bool, default=False)
+    ap.add_argument("--loglevel", type=str, default="info")
     argv = ap.parse_args()
 
     if argv.test:
             stocks = stocks_test
+    loglevel = LOG_LEVELS.get(argv.loglevel)
+    print(loglevel)
     recency_duration = argv.n_hours * 3600
     news_list = []
     current_time = time.strftime("%H:%M:%S", time.localtime())
 
-    with open('/Users/bobstomach/Documents/Dev/bourse/recent_news.txt', 'a') as f:
-        f.write(f"{dt.date.today().isoformat()} - {current_time}")
-        f.write('\n')
+    # with open('/Users/bobstomach/Documents/Dev/bourse/recent_news.txt', 'a') as f:
+    #     f.write(f"{dt.date.today().isoformat()} - {current_time}")
+    #     f.write('\n')
 
     for ticker, name in stocks.items():
         try:
-            url = f"https://www.boursorama.com/cours/actualites/1rP{ticker}/"
-            if ticker in ["ALCLS", "ALGEN"]:
-                url = f"https://www.boursorama.com/cours/actualites/1rEP{ticker}/"
-            r = requests.get(url)
-            soup = bs(r.text, 'html.parser')
+            soup = download_soup(ticker)
             news = soup.find_all(attrs={"class": "c-list-details-news__author"})
             if news:
                 last_news = news[0]
@@ -57,16 +66,17 @@ if __name__ == "__main__":
             if delay < recency_duration:
                 print(f"Recent news for {name} ({ticker})")
                 print(last_news_title)
-                with open('/Users/bobstomach/Documents/Dev/bourse/recent_news.txt', 'a') as f:
-                    f.write(f"Recent news for {name} ({ticker}): {last_news_title}")
-                    f.write('\n')
+
+                #with open('/Users/bobstomach/Documents/Dev/bourse/recent_news.txt', 'a') as f:
+                #    f.write(f"Recent news for {name} ({ticker}): {last_news_title}")
+                #    f.write('\n')
                 try:
                     news_list.append((ticker, name, last_news_title))
                 except Exception:
                     print(f"Unable to append stock {ticker} to last_news list")
 
             time.sleep(10 * np.random.random(1)[0])
-            
+
         except Exception:
             print(f"Unable to crawl stock {ticker}-{name}")
 
